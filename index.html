@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSV Profiler — data-quality at a glance</title>
+<style>
+  :root{
+    --paper:#f6f8fa;--panel:#fff;--ink:#1a2027;--muted:#5a6673;--dim:#8a94a0;--line:#e3e8ee;
+    --accent:#126e82;--accent-soft:#126e8212;--good:#17854a;--warn:#b5841f;--bad:#c0392b;
+    --num:#126e82;--txt:#5a6673;--date:#7a3fb0;--bool:#b5841f;
+    --shadow:0 1px 2px rgba(20,25,30,.04),0 6px 20px rgba(20,25,30,.06);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:var(--paper);color:var(--ink);line-height:1.45;font-size:14px}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 22px 60px}
+  header.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:16px;border-bottom:2px solid var(--accent);padding-bottom:15px}
+  .brand h1{font-size:22px;font-weight:700}
+  .brand .sub{color:var(--muted);font-size:13px;margin-top:4px;max-width:66ch}
+  .by{text-align:right;font-size:12px;color:var(--muted)}.by a{color:var(--accent);text-decoration:none}
+  .note{background:var(--accent-soft);border:1px solid var(--line);border-left:3px solid var(--accent);padding:10px 14px;border-radius:6px;font-size:12.5px;color:var(--muted);margin:18px 0 22px}
+  .note b{color:var(--ink)}
+  .drop{background:var(--panel);border:1.5px dashed var(--line);border-radius:12px;padding:26px;text-align:center;box-shadow:var(--shadow);transition:.15s}
+  .drop.hover{border-color:var(--accent);background:var(--accent-soft)}
+  .drop h3{font-size:15px;margin-bottom:5px}.drop p{font-size:12.5px;color:var(--dim)}
+  .drop label.btn{display:inline-block;margin-top:12px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;padding:8px 16px;border-radius:8px;cursor:pointer}
+  .drop input[type=file]{display:none}
+  .drop .or{margin:10px 0 2px;font-size:12px;color:var(--dim)}
+  .sample{background:none;border:1px solid var(--line);font:inherit;font-size:12.5px;font-weight:600;color:var(--muted);padding:7px 14px;border-radius:8px;cursor:pointer}
+  .sample:hover{border-color:var(--accent);color:var(--accent)}
+  .overview{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:13px;margin:22px 0}
+  .ov{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 15px;box-shadow:var(--shadow)}
+  .ov .n{font-size:24px;font-weight:800}.ov .l{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:600;margin-top:2px}
+  h2{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);margin:22px 0 12px}
+  .cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+  .col{background:var(--panel);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow);overflow:hidden}
+  .col .ch{padding:12px 15px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .col .cname{font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .type{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+  .type.number{background:#126e8216;color:var(--num)}.type.text{background:#5a667316;color:var(--txt)}
+  .type.date{background:#7a3fb016;color:var(--date)}.type.boolean{background:#b5841f1c;color:var(--bool)}
+  .cb{padding:12px 15px}
+  .stat{display:grid;grid-template-columns:1fr auto;gap:5px 10px;font-size:12.5px;margin-bottom:3px}
+  .stat .k{color:var(--muted)}.stat .v{font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+  .flag{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px;margin:2px 3px 0 0}
+  .flag.good{background:#17854a14;color:var(--good)}.flag.warn{background:#b5841f18;color:var(--warn)}.flag.bad{background:#c0392b14;color:var(--bad)}
+  .nullbar{height:7px;background:#eef1f4;border-radius:4px;overflow:hidden;margin-top:7px}
+  .nullbar span{display:block;height:100%;background:var(--bad)}
+  .hist{margin-top:9px}
+  .hrow{display:grid;grid-template-columns:92px 1fr 42px;gap:7px;align-items:center;font-size:11.5px;margin-bottom:3px}
+  .hrow .hl{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hbar{height:11px;background:var(--accent-soft);border-radius:3px;overflow:hidden}.hbar span{display:block;height:100%;background:var(--accent)}
+  .hrow .hv{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+  footer{margin-top:32px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--dim);text-align:center}
+  footer a{color:var(--accent);text-decoration:none}
+  #results{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>CSV Profiler</h1>
+      <div class="sub">Drop in a CSV and instantly see what's in it — column types, missing values, duplicates, ranges, and the most common values. A fast data-quality triage before you trust a file.</div>
+    </div>
+    <div class="by">Built by <b>Jithin J</b><br><a href="https://github.com/jithinjolly2000-maker" target="_blank" rel="noopener">github.com/jithinjolly2000-maker</a></div>
+  </header>
+
+  <div class="note">🔒 <b>Private — runs entirely in your browser.</b> Your file is parsed locally with JavaScript and never uploaded anywhere. Load your own CSV, or try the <b>sample</b>.</div>
+
+  <div class="drop" id="drop">
+    <h3>Drop a .csv file here</h3>
+    <p>or choose one from your computer</p>
+    <label class="btn">Choose file<input type="file" accept=".csv,text/csv" id="file"></label>
+    <div class="or">— or —</div>
+    <button class="sample" id="sampleBtn">Load sample data</button>
+  </div>
+
+  <div id="results">
+    <div class="overview" id="overview"></div>
+    <h2>Column profiles</h2>
+    <div class="cols" id="cols"></div>
+  </div>
+
+  <footer>Static tool · vanilla HTML/CSS/JS · runs 100% in-browser · GitHub Pages · <a href="https://github.com/jithinjolly2000-maker/csv-profiler" target="_blank" rel="noopener">source</a></footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  function parseCSV(text){
+    text=text.replace(/^\uFEFF/,"");var rows=[],row=[],cur="",i=0,inQ=false,c;
+    while(i<text.length){c=text[i];
+      if(inQ){if(c==='"'){if(text[i+1]==='"'){cur+='"';i+=2;continue;}inQ=false;i++;continue;}cur+=c;i++;continue;}
+      if(c==='"'){inQ=true;i++;continue;}
+      if(c===','){row.push(cur);cur="";i++;continue;}
+      if(c==='\r'){i++;continue;}
+      if(c==='\n'){row.push(cur);rows.push(row);row=[];cur="";i++;continue;}
+      cur+=c;i++;}
+    if(cur.length||row.length){row.push(cur);rows.push(row);}
+    if(!rows.length)return{headers:[],records:[]};
+    var headers=rows[0].map(function(h){return h.trim();});
+    var records=[];
+    for(var r=1;r<rows.length;r++){
+      if(rows[r].length===1&&rows[r][0]==="")continue;
+      var o={};for(var h=0;h<headers.length;h++)o[headers[h]]=(rows[r][h]!==undefined?rows[r][h]:"").trim();
+      records.push(o);
+    }
+    return{headers:headers,records:records};
+  }
+
+  function isNum(v){ return v!=="" && !isNaN(Number(v.replace(/[,\s]/g,""))); }
+  function isDate(v){ return v!=="" && /^\d{4}[-/]\d{1,2}[-/]\d{1,2}|^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}/.test(v) && !isNaN(Date.parse(v)); }
+  function isBool(v){ return /^(true|false|yes|no|y|n|0|1)$/i.test(v); }
+
+  function detectType(values){
+    var nonEmpty=values.filter(function(v){return v!=="";});
+    if(!nonEmpty.length) return "text";
+    var nums=0,dates=0,bools=0;
+    nonEmpty.forEach(function(v){ if(isNum(v))nums++; else if(isDate(v))dates++; });
+    var allBool=nonEmpty.every(isBool);
+    if(allBool && nonEmpty.length) return "boolean";
+    if(nums/nonEmpty.length>=0.9) return "number";
+    if(dates/nonEmpty.length>=0.9) return "date";
+    return "text";
+  }
+
+  function profile(parsed){
+    var recs=parsed.records, N=recs.length;
+    // dedupe full rows
+    var seen={},dupes=0;
+    recs.forEach(function(r){ var k=parsed.headers.map(function(h){return r[h];}).join("\u0001"); if(seen[k])dupes++; else seen[k]=1; });
+
+    document.getElementById("overview").innerHTML=
+      ov(N.toLocaleString(),"Rows")+ov(parsed.headers.length,"Columns")+
+      ov(dupes,"Duplicate rows")+ov(totalNullCols(parsed),"Cells empty");
+
+    document.getElementById("cols").innerHTML=parsed.headers.map(function(h){
+      var vals=recs.map(function(r){return r[h];});
+      var nonEmpty=vals.filter(function(v){return v!=="";});
+      var nulls=N-nonEmpty.length;
+      var nullPct=N?Math.round(nulls/N*100):0;
+      var type=detectType(vals);
+      var uniq={};nonEmpty.forEach(function(v){uniq[v]=(uniq[v]||0)+1;});
+      var uniqCount=Object.keys(uniq).length;
+      var body="";
+      body+=stat("Type-valid",nonEmpty.length+" / "+N);
+      body+=stat("Unique values",uniqCount.toLocaleString());
+
+      if(type==="number"){
+        var nums=nonEmpty.map(function(v){return Number(v.replace(/[,\s]/g,""));});
+        var min=Math.min.apply(null,nums),max=Math.max.apply(null,nums);
+        var sum=nums.reduce(function(a,b){return a+b;},0),mean=sum/nums.length;
+        var sorted=nums.slice().sort(function(a,b){return a-b;});
+        var median=sorted.length%2?sorted[(sorted.length-1)/2]:(sorted[sorted.length/2-1]+sorted[sorted.length/2])/2;
+        body+=stat("Min",fmt(min))+stat("Max",fmt(max))+stat("Mean",fmt(mean))+stat("Median",fmt(median))+stat("Sum",fmt(sum));
+      } else {
+        // top values histogram
+        var top=Object.keys(uniq).map(function(k){return {k:k,c:uniq[k]};}).sort(function(a,b){return b.c-a.c;}).slice(0,5);
+        var maxc=top.length?top[0].c:1;
+        body+='<div class="hist">'+top.map(function(t){
+          return '<div class="hrow"><div class="hl" title="'+esc(t.k)+'">'+esc(t.k||"(empty)")+'</div>'+
+            '<div class="hbar"><span style="width:'+Math.round(t.c/maxc*100)+'%"></span></div>'+
+            '<div class="hv">'+t.c+'</div></div>';
+        }).join("")+'</div>';
+      }
+
+      // flags
+      var flags=[];
+      if(nullPct===0) flags.push('<span class="flag good">no gaps</span>');
+      else if(nullPct<10) flags.push('<span class="flag warn">'+nullPct+'% empty</span>');
+      else flags.push('<span class="flag bad">'+nullPct+'% empty</span>');
+      if(uniqCount===N && N>0) flags.push('<span class="flag good">unique key?</span>');
+      if(uniqCount===1 && N>0) flags.push('<span class="flag warn">constant</span>');
+
+      var nullbar=nulls>0?'<div class="nullbar"><span style="width:'+nullPct+'%"></span></div>':'';
+
+      return '<div class="col"><div class="ch"><div class="cname" title="'+esc(h)+'">'+esc(h||"(unnamed)")+'</div>'+
+        '<span class="type '+type+'">'+type+'</span></div><div class="cb">'+body+
+        '<div style="margin-top:8px">'+flags.join("")+'</div>'+nullbar+'</div></div>';
+    }).join("");
+
+    document.getElementById("results").style.display="block";
+    document.getElementById("results").scrollIntoView({behavior:"smooth",block:"start"});
+  }
+
+  function totalNullCols(p){ var n=0;p.records.forEach(function(r){p.headers.forEach(function(h){if(r[h]==="")n++;});});return n; }
+  function ov(n,l){ return '<div class="ov"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>'; }
+  function stat(k,v){ return '<div class="stat"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>'; }
+  function fmt(n){ if(Math.abs(n)>=1000||Number.isInteger(n))return Math.round(n*100)/100<1&&n!==0?n.toPrecision(3):Number(n.toFixed(2)).toLocaleString("en-GB"); return Number(n.toFixed(2)).toLocaleString("en-GB"); }
+  function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+  function load(file){
+    var reader=new FileReader();
+    reader.onload=function(e){ profile(parseCSV(e.target.result)); };
+    reader.readAsText(file);
+  }
+  document.getElementById("file").addEventListener("change",function(){ if(this.files[0]) load(this.files[0]); });
+  var drop=document.getElementById("drop");
+  drop.addEventListener("dragover",function(e){e.preventDefault();drop.classList.add("hover");});
+  drop.addEventListener("dragleave",function(){drop.classList.remove("hover");});
+  drop.addEventListener("drop",function(e){e.preventDefault();drop.classList.remove("hover");if(e.dataTransfer.files[0])load(e.dataTransfer.files[0]);});
+
+  document.getElementById("sampleBtn").addEventListener("click",function(){
+    var csv="OrderID,Customer,Country,Amount,Currency,OrderDate,Status\n"+
+      "1001,Acme Ltd,UK,1250.00,GBP,2026-01-15,Shipped\n"+
+      "1002,Globex,DE,890.50,EUR,2026-01-16,Shipped\n"+
+      "1003,Initech,DE,,EUR,2026-01-18,Pending\n"+
+      "1004,Umbrella,FR,3400.00,EUR,2026-01-20,Shipped\n"+
+      "1005,Soylent,UK,220.00,GBP,2026-01-21,Cancelled\n"+
+      "1006,Hooli,DE,990.00,EUR,,Shipped\n"+
+      "1007,Stark,IT,1500.75,EUR,2026-02-01,Shipped\n"+
+      "1008,Wayne,UK,,GBP,2026-02-03,Pending\n"+
+      "1009,Wonka,FR,760.00,EUR,2026-02-05,Shipped\n"+
+      "1010,Acme Ltd,UK,1250.00,GBP,2026-02-08,Shipped\n"+
+      "1010,Acme Ltd,UK,1250.00,GBP,2026-02-08,Shipped\n"+
+      "1011,Globex,DE,4100.00,EUR,2026-02-10,Shipped";
+    profile(parseCSV(csv));
+  });
+})();
+</script>
+</body>
+</html>
